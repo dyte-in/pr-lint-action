@@ -88,22 +88,10 @@ function run() {
             core.info(`Body Regex: ${titleRegex.source}`);
             core.info(`Body: ${body}`);
             if (!bodyRegex.test(body)) {
-                const bodyComment = onFailedRegexCommentInput.replace("%regex%", bodyRegex.source);
-                if (onFailedRegexCreateReviewInput) {
-                    createReview(bodyComment, pullRequest);
-                }
-                if (onFailedRegexFailActionInput) {
-                    core.setFailed(bodyComment);
-                }
                 core.error(`Failing body: ${body}`);
             }
             else {
                 core.debug(`Regex pass`);
-                if (onFailedRegexCreateReviewInput) {
-                    core.debug(`Dismissing review`);
-                    yield dismissReview(pullRequest);
-                    core.debug(`Review dimissed`);
-                }
             }
         }
     });
