@@ -1,5 +1,5 @@
 {
-  "name": "pr-lint-action",
+  "name": "pr-lint-title",
   "version": "1.6.1",
   "description": "A GitHub Action to ensure that your PR title matches a given regex.",
   "main": "lib/main.js",

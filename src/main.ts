@@ -7,9 +7,6 @@ const octokit = github.getOctokit(repoTokenInput);
 const titleRegexInput: string = core.getInput("title-regex", {
   required: true,
 });
-const bodyRegexInput: string = core.getInput("body-regex", {
-  required: false,
-});
 const onFailedRegexCreateReviewInput: boolean =
   core.getInput("on-failed-regex-create-review") === "true";
 const onFailedRegexCommentInput: string = core.getInput(
@@ -30,7 +27,6 @@ async function run(): Promise<void> {
   const titleRegex = new RegExp(titleRegexInput);
   const title: string =
     (githubContext.payload.pull_request?.title as string) ?? "";
-  const body: string = githubContext.payload.pull_request?.body ?? "";
   const comment = onFailedRegexCommentInput.replace(
     "%regex%",
     titleRegex.source
@@ -47,39 +43,13 @@ async function run(): Promise<void> {
     if (onFailedRegexFailActionInput) {
       core.setFailed(comment);
     }
-    core.error(`Failing title: ${title}`);
+    core.debug(`Failing title: ${title}`);
   } else {
     core.debug(`Regex pass`);
     if (onFailedRegexCreateReviewInput) {
       core.debug(`Dismissing review`);
       await dismissReview(pullRequest);
       core.debug(`Review dimissed`);
-    }
-  }
-
-  if (bodyRegexInput && titleMatchesRegex) {
-    const bodyRegex = new RegExp(bodyRegexInput);
-    core.info(`Body Regex: ${titleRegex.source}`);
-    core.info(`Body: ${body}`);
-    if (!bodyRegex.test(body)) {
-      const bodyComment = onFailedRegexCommentInput.replace(
-        "%regex%",
-        bodyRegex.source
-      );
-      if (onFailedRegexCreateReviewInput) {
-        createReview(bodyComment, pullRequest);
-      }
-      if (onFailedRegexFailActionInput) {
-        core.setFailed(bodyComment);
-      }
-      core.error(`Failing body: ${body}`);
-    } else {
-      core.debug(`Regex pass`);
-      if (onFailedRegexCreateReviewInput) {
-        core.debug(`Dismissing review`);
-        await dismissReview(pullRequest);
-        core.debug(`Review dimissed`);
-      }
     }
   }
 }
@@ -92,7 +62,7 @@ function createReview(
     owner: pullRequest.owner,
     repo: pullRequest.repo,
     pull_number: pullRequest.number,
-    body: comment,
+    body: `title-linter: ${comment}`,
     event: onFailedRegexRequestChanges ? "REQUEST_CHANGES" : "COMMENT",
   });
 }
@@ -109,11 +79,12 @@ async function dismissReview(pullRequest: {
   });
 
   reviews.data.forEach(
-    (review: { id: number; user: { login: string } | null; state: string }) => {
+    (review: { id: number; user: { login: string } | null; state: string; body: string }) => {
       if (
         review.user != null &&
         isGitHubActionUser(review.user.login) &&
-        alreadyRequiredChanges(review.state)
+        alreadyRequiredChanges(review.state) &&
+        review.body.startsWith("title-linter:")
       ) {
         core.debug(`Already required changes`);
         if (review.state === "COMMENTED") {
